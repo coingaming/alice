@@ -1,50 +1,38 @@
 import 'dart:convert';
 
-import 'package:alice/model/alice_translation.dart';
-import 'package:alice/ui/common/alice_context_ext.dart';
-import 'package:flutter/material.dart';
-
-/// Body parser helper used to parsing body data.
 class AliceParser {
+  static const String _emptyBody = 'Body is empty';
+  static const String _unknownContentType = 'Unknown';
   static const String _jsonContentTypeSmall = 'content-type';
   static const String _jsonContentTypeBig = 'Content-Type';
   static const String _stream = 'Stream';
   static const String _applicationJson = 'application/json';
-  static const JsonEncoder _encoder = JsonEncoder.withIndent('  ');
+  static const String _parseFailedText = 'Failed to parse ';
+  static const JsonEncoder encoder = JsonEncoder.withIndent('  ');
 
-  /// Tries to parse json. If it fails, it will return the json itself.
   static String _parseJson(dynamic json) {
     try {
-      return _encoder.convert(json);
-    } catch (_) {
+      return encoder.convert(json);
+    } catch (exception) {
       return json.toString();
     }
   }
 
-  /// Tries to parse json. If it fails, it will return the json itself.
   static dynamic _decodeJson(dynamic body) {
     try {
       return json.decode(body as String);
-    } catch (_) {
+    } catch (exception) {
       return body;
     }
   }
 
-  /// Formats body based on [contentType]. If body is null it will return
-  /// [_emptyBody]. Otherwise if body type is json - it will try to format it.
-  ///
-  static String formatBody({
-    required BuildContext context,
-    required dynamic body,
-    String? contentType,
-  }) {
+  static String formatBody(dynamic body, String? contentType) {
     try {
       if (body == null) {
-        return context.i18n(AliceTranslationKey.callRequestBodyEmpty);
+        return _emptyBody;
       }
 
-      String bodyContent =
-          context.i18n(AliceTranslationKey.callRequestBodyEmpty);
+      var bodyContent = _emptyBody;
 
       if (contentType == null ||
           !contentType.toLowerCase().contains(_applicationJson)) {
@@ -59,7 +47,7 @@ class AliceParser {
         } else {
           if (body is String) {
             if (body.isNotEmpty) {
-              // body is minified json, so decode it to a map and let the
+              //body is minified json, so decode it to a map and let the
               // encoder pretty print this map
               bodyContent = _parseJson(_decodeJson(body));
             }
@@ -72,39 +60,20 @@ class AliceParser {
       }
 
       return bodyContent;
-    } catch (_) {
-      return context.i18n(AliceTranslationKey.parserFailed) + body.toString();
+    } catch (exception) {
+      return _parseFailedText + body.toString();
     }
   }
 
-  /// Get content type from [headers]. It looks for json and if it can't find
-  /// it, it will return unknown content type.
-  static String? getContentType({
-    required BuildContext context,
-    Map<String, String>? headers,
-  }) {
+  static String? getContentType(Map<String, dynamic>? headers) {
     if (headers != null) {
       if (headers.containsKey(_jsonContentTypeSmall)) {
-        return headers[_jsonContentTypeSmall];
+        return headers[_jsonContentTypeSmall] as String?;
       }
       if (headers.containsKey(_jsonContentTypeBig)) {
-        return headers[_jsonContentTypeBig];
+        return headers[_jsonContentTypeBig] as String?;
       }
     }
-    return context.i18n(AliceTranslationKey.unknown);
-  }
-
-  /// Parses headers from [dynamic] to [Map<String,String>], if possible.
-  /// Otherwise it will throw error.
-  static Map<String, String> parseHeaders({dynamic headers}) {
-    if (headers is Map<String, String>) {
-      return headers;
-    }
-
-    if (headers is Map<String, dynamic>) {
-      return headers.map((key, value) => MapEntry(key, value.toString()));
-    }
-
-    throw ArgumentError("Invalid headers value.");
+    return _unknownContentType;
   }
 }
